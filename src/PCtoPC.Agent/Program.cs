@@ -10,7 +10,7 @@ try
     if (args.Length == 0 || args[0] is "help" or "--help")
     {
         Console.WriteLine("""
-        PCtoPC Agent 0.1
+        PCtoPC Agent 0.2
         init --host <LAN IP or Tailscale DNS> --out <private .pctopc.json> [--listen <local IP>] [--port 47831] [--enable-power] [--reset]
         serve [--dry-run]
         add-wake-target --id <id> --mac <MAC> --broadcast <LAN broadcast> [--local-address <LAN interface IP>]

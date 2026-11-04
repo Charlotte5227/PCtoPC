@@ -54,9 +54,28 @@ public static class WakeOnLan
         var address = Validation.IPv4(broadcast);
         using var udp = new UdpClient(AddressFamily.InterNetwork) { EnableBroadcast = true };
         if (!string.IsNullOrWhiteSpace(localAddress)) udp.Client.Bind(new IPEndPoint(Validation.IPv4(localAddress), 0));
+        await SendPacketAsync(udp, packet, new IPEndPoint(address, 9), cancellationToken);
+    }
+    public static async Task<IPEndPoint> SendToHostAsync(string mac, string host, int port, CancellationToken cancellationToken = default)
+    {
+        var packet = MagicPacket(mac);
+        host = Validation.WakeHost(host);
+        Validation.UdpPort(port);
+        cancellationToken.ThrowIfCancellationRequested();
+        // Resolve on every operation so changes to a DDNS record can take effect.
+        var addresses = await Dns.GetHostAddressesAsync(host, AddressFamily.InterNetwork, cancellationToken);
+        var address = addresses.FirstOrDefault() ?? throw new IOException("送信先のIPv4アドレスが見つかりません。DDNS設定を確認してください。");
+        Validation.WakeAddress(address);
+        var endpoint = new IPEndPoint(address, port);
+        using var udp = new UdpClient(AddressFamily.InterNetwork);
+        await SendPacketAsync(udp, packet, endpoint, cancellationToken);
+        return endpoint;
+    }
+    private static async Task SendPacketAsync(UdpClient udp, byte[] packet, IPEndPoint endpoint, CancellationToken cancellationToken)
+    {
         for (var i = 0; i < 3; i++)
         {
-            await udp.SendAsync(packet, new IPEndPoint(address, 9), cancellationToken);
+            await udp.SendAsync(packet, endpoint, cancellationToken);
             await Task.Delay(50, cancellationToken);
         }
     }

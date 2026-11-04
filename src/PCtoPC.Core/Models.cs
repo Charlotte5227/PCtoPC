@@ -36,6 +36,24 @@ public static partial class Validation
             throw new ArgumentException("IPv4アドレスを入力してください。");
         return address;
     }
+    public static void UdpPort(int port)
+    {
+        if (port is < 1 or > 65535) throw new ArgumentException("UDPポートは1～65535で指定してください。");
+    }
+    public static string WakeHost(string value)
+    {
+        value = Host(value);
+        if (IPAddress.TryParse(value, out var address)) WakeAddress(address);
+        else if (Uri.CheckHostName(value) != UriHostNameType.Dns || value.All(c => char.IsDigit(c) || c == '.'))
+            throw new ArgumentException("送信先はIPv4アドレスまたはDDNS名で指定してください。");
+        return value;
+    }
+    public static void WakeAddress(IPAddress address)
+    {
+        if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
+            address.Equals(IPAddress.Any) || address.Equals(IPAddress.Broadcast) || address.GetAddressBytes()[0] >= 224)
+            throw new ArgumentException("外部WoLの送信先にはIPv4のユニキャストアドレスを指定してください。");
+    }
 }
 
 public sealed class Pairing
@@ -74,6 +92,8 @@ public sealed class PcProfile
     public bool Overlay { get; set; } = true;
     public string Mac { get; set; } = "";
     public string Broadcast { get; set; } = "255.255.255.255";
+    public string WanWakeHost { get; set; } = "";
+    public int WanWakePort { get; set; } = 3000;
     public string RelayProfileId { get; set; } = "";
     public string WakeTargetId { get; set; } = "";
     public void Validate()
@@ -87,6 +107,8 @@ public sealed class PcProfile
         if (Codec is not ("auto" or "H.264" or "HEVC" or "AV1")) throw new ArgumentException("コーデックが不正です。");
         Agent?.Validate();
         if (Mac.Length > 0) { WakeOnLan.MagicPacket(Mac); Validation.IPv4(Broadcast); }
+        if (WanWakeHost.Length > 0) WanWakeHost = Validation.WakeHost(WanWakeHost);
+        Validation.UdpPort(WanWakePort);
         if (WakeTargetId.Length > 0) Validation.Id(WakeTargetId);
     }
     public override string ToString() => Name;

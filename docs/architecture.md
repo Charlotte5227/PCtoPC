@@ -6,11 +6,20 @@
 操作PC: PCtoPC -> Moonlight == UDP映像/音声・入力 ==> Sunshine: 被接続PC
              -> AgentClient == pinned HTTPS/TCP 47831 ==> PCtoPC Agent
              -> 中継Agent (Tailscale) -> UDP 9 broadcast -> 停止中のPC
+             -> 外部IPv4/DDNS:指定UDPポート -> ルーター転送 -> 停止中のPC
 ```
 
 画面転送経路にPCtoPCのプロキシや追加フレームキューは入りません。接続時はMoonlightの公開CLIをシェル経由でなくArgumentListで起動します。初回PIN認証と画面転送の認証はSunshine／Moonlightが管理します。
 
 Windows UIはWPF、電源／WoL AgentはASP.NET Core Kestrel、共通処理は.NETです。エージェントはログに認証トークンを出しません。ネットワーク・電源・ファイアウォール・自動起動のシステム設定はユーザーが指定した手順だけで変更されます。
+
+## 外部WoL（v0.2）
+
+PcProfileのWanWakeHost／WanWakePortを画面転送のHost、Agentの接続先とは独立して保存します。旧JSONにこれらの項目がない場合は空ホスト／UDP 3000を使います。MACは既存のMacフィールドを共用し、UI上のLAN用／外部用入力を双方向バインディングで同期します。
+
+SendToHostAsyncはホスト名を各操作時にIPv4で名前解決し、最初のIPv4の指定UDPポートへ102バイトのMagic Packetを3回送ります。WindowsのDNSキャッシュを使用し、明示的なキャッシュは追加しません。外部送信ソケットのブロードキャストは有効にせず、IPv6・マルチキャスト・未指定アドレス・全体ブロードキャスト・URL付き入力・範囲外ポートを拒否します。LAN／Agent中継の既存のSendAsyncは引き続きUDP 9を使用します。
+
+UIの送信処理は8秒のタイムアウトを設け、失敗時にLAN送信など別経路へフォールバックしません。UDP送信完了と起動完了は区別します。詳細とルーター設定例は[wan-wake.md](wan-wake.md)を参照してください。
 
 ## Agentの認証
 

@@ -2,8 +2,8 @@
         Title="PCtoPC — リモートデスクトップ" Width="1220" Height="940" MinWidth="1000" MinHeight="720" Background="#0E1726" WindowStartupLocation="CenterScreen">
   <Grid Margin="26,20" TextElement.Foreground="#DFE8F4">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <Grid Margin="0,0,0,20"><StackPanel><TextBlock Text="PCtoPC" FontSize="32" FontWeight="Bold"/><TextBlock Text="あなたのPCを、いつもの操作感で。" Foreground="#A5B6CD" Margin="0,4,0,0"/></StackPanel><TextBlock Text="WINDOWS HOME / PRO  ·  v0.1" HorizontalAlignment="Right" Foreground="#6AE1C5" FontSize="12"/></Grid>
-    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+    <Grid Margin="0,0,0,20"><StackPanel><TextBlock Text="PCtoPC" FontSize="32" FontWeight="Bold"/><TextBlock Text="あなたのPCを、いつもの操作感で。" Foreground="#A5B6CD" Margin="0,4,0,0"/></StackPanel><TextBlock Text="WINDOWS HOME / PRO  ·  v0.2" HorizontalAlignment="Right" Foreground="#6AE1C5" FontSize="12"/></Grid>
+    <TabControl x:Name="MainTabs" Grid.Row="1" Background="Transparent" BorderThickness="0">
       <TabItem Header="接続する">
         <Grid Margin="0,20,0,0">
           <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -41,11 +41,32 @@
                 <TextBlock Text="LAN内で起動: MACアドレス"/><TextBox x:Name="MacAddress" AutomationProperties.Name="MACアドレス"/><TextBlock Text="LANのブロードキャストアドレス"/><TextBox x:Name="BroadcastAddress" AutomationProperties.Name="ブロードキャスト"/>
                 <TextBlock Text="Tailscale越しに起動: 常時稼働中の中継PC"/><ComboBox x:Name="Relay" DisplayMemberPath="Name" AutomationProperties.Name="中継PC"/><TextBlock Text="中継Agentに登録したWakeターゲットID"/><TextBox x:Name="WakeId" AutomationProperties.Name="WakeターゲットID"/>
                 <WrapPanel><Button Content="LANで起動する" Click="WakeLan_Click"/><Button Content="中継PCから起動する" Click="WakeRelay_Click"/></WrapPanel>
-                <TextBlock Text="起動はWake-on-LAN対応機器のみ。Tailscale越しには同じLANに別の常時稼働端末が必要です。Wi-Fi経由の復帰は機種に依存します。" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+                <TextBlock Text="起動はWake-on-LAN対応機器のみ。外部IP／DDNSとポート転送を使う場合は「外部から起動」タブへ。Tailscale中継には同じLANの常時稼働端末が必要です。" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
               </StackPanel></Border>
             </StackPanel>
           </ScrollViewer>
         </Grid>
+      </TabItem>
+      <TabItem Header="外部から起動">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22,24" MaxWidth="850" HorizontalAlignment="Left">
+          <TextBlock Text="外出先からPCを起動" Style="{StaticResource Heading}"/>
+          <TextBlock Text="ルーターの外部IPv4／DDNS名へ起動信号を送ります。起動後は「接続する」タブから、Tailscaleなどを使ってデスクトップに接続できます。" Style="{StaticResource Muted}"/>
+          <Border Background="{StaticResource Panel}" Padding="22" CornerRadius="10"><StackPanel>
+            <TextBlock Text="起動するPC（接続先は「接続する」タブで追加）"/><ComboBox x:Name="WakeProfilePick" DisplayMemberPath="Name" SelectionChanged="WakeProfilePick_SelectionChanged" AutomationProperties.Name="外部から起動するPC"/>
+            <TextBlock Text="起動するPCの有線LAN MACアドレス（LAN起動と共通）"/><TextBox x:Name="WanMacAddress" Text="{Binding Text, ElementName=MacAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="外部WoLの対象MACアドレス"/>
+            <TextBlock Text="HGW／ルーターの外部IPv4アドレス または DDNS名"/><TextBox x:Name="WanHostName" AutomationProperties.Name="外部WoLの送信先"/>
+            <TextBlock Text="例: home.example.net ／ URLのhttps://やポート番号は付けません。PCのLAN IPとは別の送信先です。" Style="{StaticResource Muted}"/>
+            <TextBlock Text="外部UDPポート（1～65535）"/><TextBox x:Name="WanPort" AutomationProperties.Name="外部WoLのUDPポート"/>
+            <WrapPanel><Button Content="外部へ起動信号を送る" Background="#087F74" Click="WakeWan_Click"/><Button Content="保存" Click="Save_Click"/></WrapPanel>
+            <TextBlock Text="送信すると入力内容も保存されます。結果と送信先IPは「設定とログ」で確認できます。" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+          </StackPanel></Border>
+          <Border Background="{StaticResource Panel}" Padding="22" CornerRadius="10" Margin="0,18,0,0"><StackPanel>
+            <TextBlock Text="ルーターの準備" Style="{StaticResource Heading}"/>
+            <TextBlock Text="ルーターで対象PCのIPを予約し、IP・MACを固定します。指定した外部UDPポートから、対象PCのUDP 9へ転送してください。ルーターが二段の場合は両方の転送設定が必要です。" Margin="0,0,0,12"/>
+            <TextBlock Text="このアプリはルーターの設定を自動変更しません。外部アドレスは変更される場合があるため、固定名で送りたいときはDDNSを設定してください。" Margin="0,0,0,12"/>
+            <TextBlock Text="外部テストは自宅Wi-Fiを離れた回線から行います。UDPの送信完了はPCの起動完了を示しません。起動に時間がかかる場合は少し待ってから接続してください。" Foreground="#A5B6CD"/>
+          </StackPanel></Border>
+        </StackPanel></ScrollViewer>
       </TabItem>
       <TabItem Header="このPCで接続を受ける">
         <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22,24" MaxWidth="850" HorizontalAlignment="Left">
@@ -63,7 +84,7 @@
             <TextBlock Text="Agentはコンソールウィンドウを開いて動作します。停止はCtrl+C。待受IPとWindowsファイアウォールの許可範囲を合わせて設定してください（README参照）。" Style="{StaticResource Muted}"/>
           </StackPanel></Border>
           <TextBlock Text="電源オフからの起動について" Style="{StaticResource Heading}" Margin="0,24,0,12"/>
-          <TextBlock Text="UEFI/BIOSとネットワークアダプターのWake-on-LANを有効にします。有線LANを推奨します。外部からの起動は、別のPCやLinux端末でAgentを動かしてWoLを中継します。詳細な設定・自動起動の手順は同梱のREADMEとdocsをご覧ください。"/>
+          <TextBlock Text="UEFI/BIOSとネットワークアダプターのWake-on-LANを有効にします。有線LANを推奨します。外部からは「外部から起動」タブでルーターへWoLを送る方法と、常時稼働する別端末のAgentで中継する方法があります。詳細はREADMEをご覧ください。"/>
           <TextBlock Text="共有するのは被接続側の実デスクトップです。ローカル画面にも操作が表示されます。ログイン前・UACのセキュアデスクトップ・画面のないPCの動作はSunshineと機器の構成に依存します。" Style="{StaticResource Muted}" Margin="0,20,0,0"/>
         </StackPanel></ScrollViewer>
       </TabItem>

@@ -29,5 +29,5 @@ Copy-Item -LiteralPath (Join-Path $repo 'README.md'),(Join-Path $repo 'LICENSE')
 Copy-Item -LiteralPath (Join-Path $repo 'docs') -Destination $target -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $repo 'scripts') -Destination $target -Recurse -Force
 $label = if ($FrameworkDependent) { 'framework-dependent' } else { 'self-contained' }
-Set-Content -LiteralPath (Join-Path $target 'BUILD.txt') -Value "PCtoPC 0.1.0 / $Runtime / $label`r`nSunshine and Moonlight must be installed separately."
+Set-Content -LiteralPath (Join-Path $target 'BUILD.txt') -Value "PCtoPC 0.2.0 / $Runtime / $label`r`nSunshine and Moonlight must be installed separately."
 Write-Output "Published: $target"

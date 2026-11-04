@@ -1,6 +1,6 @@
 # PCtoPC
 
-Windows Home / Pro向けのリモートデスクトップ接続・電源管理アプリ（初期版 v0.1）。
+Windows Home / Pro向けのリモートデスクトップ接続・電源管理アプリ（v0.2）。外部IPv4／DDNS名と任意のUDPポートを指定するWoL送信に対応しています。
 
 同じWi-Fi内ではLANのIP／PC名、外部からはTailscaleのIP／MagicDNS名で接続します。画面・音声・マウス・キーボードは、別途インストールする **Sunshine（被接続側）＋Moonlight（操作側）** が処理します。PCtoPCは接続先・低遅延設定・診断・電源操作をまとめるWindowsアプリです。独自の画面転送エンジンや、Windows HomeのRDP制限を解除するものではありません。
 
@@ -11,7 +11,7 @@ Windows Home / Pro向けのリモートデスクトップ接続・電源管理�
 | 操作するWindows PC | PCtoPC、[Moonlight PC](https://moonlight-stream.org/) |
 | 操作されるWindows PC | [Sunshine](https://github.com/LizardByte/Sunshine/releases/latest)、電源管理にPCtoPC Agent |
 | 別ネットワークから接続 | 両方の端末に[Tailscale](https://tailscale.com/download/windows)、同一tailnetの許可 |
-| 外部から電源オン | 対象PCのWoL対応、有線LAN推奨、同じLANで常時稼働する別のAgent端末 |
+| 外部から電源オン | 対象PCのWoL対応、有線LAN推奨。外部IPv4へのポート転送、または同じLANで常時稼働する別のAgent端末 |
 
 Windows x64を主な対象としています。ソースからWindows ARM64版も発行できますが実機未検証です。Linux版AgentはWoL中継に使用できる構成ですが実機未検証です。
 
@@ -68,6 +68,8 @@ Windows上の設定・秘密鍵・保存済み接続情報は現在のユーザ�
 
 対象PCが停止すると、そのPCのTailscaleも停止します。Tailscale自体はLANブロードキャストを転送しないため、同じLAN上の別の常時稼働端末からWoLを送ります。[Tailscale公式の説明](https://tailscale.com/blog/wake-on-lan-tailscale-upsnap)
 
+追加の中継端末を置かずにルーターのポート転送を利用する場合は、次の「外部IPv4／DDNSへ直接送る」を利用してください。電源オンの信号は通常のIPv4 UDP通信で送り、起動後のリモート操作にはTailscaleを使えます。
+
 中継端末でもAgentを初期化します（電源許可は不要）。その接続ファイルを操作側に取り込みます。中継端末で次を実行し、Agentを再起動します。
 
 ```powershell
@@ -80,6 +82,18 @@ Windows上の設定・秘密鍵・保存済み接続情報は現在のユーザ�
 
 BIOS/UEFIのWake-on-LAN／PCIe復帰、NICのMagic Packet復帰、電源状態への対応が必要です。Wi-Fi復帰（WoWLAN）・完全シャットダウンからの起動・高速スタートアップの影響は機種依存です。有線LANでの検証を推奨します。これらに対応しないPCをアプリだけで電源オンにはできません。
 
+## 外部IPv4／DDNSへ直接送る（v0.2）
+
+「外部から起動」タブで、起動するPC、対象PCの有線LAN MACアドレス、HGW／ルーターの外部IPv4またはDDNS名、外部UDPポート（初期値3000）を指定します。「保存」または「外部へ起動信号を送る」で、接続先ごとの設定を保存します。MACアドレスはLAN起動と共通です。
+
+送信先にはURLの `https://` や `:3000` を含めず、ホスト名とポートを別々に入力します。DDNSは各送信時にWindowsの名前解決を使ってIPv4を取得します。IPv6送信には対応しません。名前解決が複数のIPv4を返す場合は最初のアドレスに送り、選択したIPとポートをログに表示します。起動信号は約50ms間隔で3回送信します。
+
+ルーターでは、指定した外部UDPポートを対象PCのUDP 9へ転送します。二段ルーターでは、上流ルーターから下流ルーターのWAN側IP、下流ルーターから対象PCへと二段で設定してください。対象PCのIP予約とIP・MACバインディングも必要です。具体例は [docs/wan-wake.md](docs/wan-wake.md) を参照してください。
+
+この機能はルーターの設定を自動変更しません。UDP送信成功は起動完了の確認ではありません。テストは自宅Wi-Fiを離れた回線から実施してください。グローバルIPv4がルーターへ届かない回線では、上流側の設定・契約の確認、またはAgent中継方式が必要です。WoLパケット自体には認証や暗号化がないため、認証付き中継を使いたい場合はTailscale＋Agentを利用します。
+
+v0.1で保存した接続先はそのまま読み込めます。更新はZIPを新しいフォルダーへ展開して `PCtoPC.exe` を起動してください。設定の保存先は同じWindowsユーザーの `%LOCALAPPDATA%\PCtoPC` です。
+
 ## 低遅延の調整
 
 - 初期設定は1080p / 60fps / H.264 / 20Mbps。帯域が細い場合は720p / 60fps / 8Mbpsから始めます。
@@ -91,7 +105,7 @@ BIOS/UEFIのWake-on-LAN／PCIe復帰、NICのMagic Packet復帰、電源状態�
 
 ## 制限と検証範囲
 
-v0.1は外部ストリーミングソフトを組み合わせる初期版です。実デスクトップを共有する方式であり、Windows RDPの独立したログインセッション・ファイル転送・クリップボード共有・USB転送は独自実装していません。日本語IME、複数画面、ロック／ログイン画面、UAC、画面を外したPCはSunshine／Moonlightと機器の設定に依存し、実機確認が必要です。
+v0.2は外部ストリーミングソフトを組み合わせる初期版です。実デスクトップを共有する方式であり、Windows RDPの独立したログインセッション・ファイル転送・クリップボード共有・USB転送は独自実装していません。日本語IME、複数画面、ロック／ログイン画面、UAC、画面を外したPCはSunshine／Moonlightと機器の設定に依存し、実機確認が必要です。
 
 ビルド、ローカルHTTPS認証、証明書ピンニング、電源操作の模擬実行と取り消し、WoLのローカルUDP送受信を自動テストします。**2台のPC間での映像・音声・入力、Tailscale越しの実通信、実機の起動／停止、実測遅延は利用環境での検証が必要です。**
 

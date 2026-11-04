@@ -11,11 +11,12 @@ public partial class App : Application
         base.OnStartup(e);
         try
         {
-            var preview = e.Args.Length == 2 && e.Args[0] == "--render-preview";
+            var preview = e.Args.Length == 2 && e.Args[0] is "--render-preview" or "--render-wan-preview";
             var window = new MainWindow(preview);
             MainWindow = window;
             if (preview)
             {
+                if (e.Args[0] == "--render-wan-preview") window.ShowWanPreview();
                 window.Width = 1220;
                 window.Height = 940;
                 var root = (FrameworkElement)window.Content;

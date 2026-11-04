@@ -31,7 +31,7 @@ public partial class MainWindow : Window
         Codec.ItemsSource = new[] { "H.264", "HEVC", "AV1", "auto" };
         if (preview)
         {
-            settings.Profiles.Add(new PcProfile { Name = "リビングのPC", Host = "192.168.1.20" });
+            settings.Profiles.Add(new PcProfile { Name = "リビングのPC", Host = "192.168.1.20", Mac = "02:12:34:56:78:9A", WanWakeHost = "home.example.net" });
             settings.Profiles.Add(new PcProfile { Name = "仕事用PC", Host = "work-pc.example.ts.net" });
         }
         RefreshProfiles();
@@ -48,6 +48,8 @@ public partial class MainWindow : Window
         var selection = Selected;
         ProfileList.ItemsSource = null;
         ProfileList.ItemsSource = settings.Profiles;
+        WakeProfilePick.ItemsSource = null;
+        WakeProfilePick.ItemsSource = settings.Profiles;
         if (selection != null && settings.Profiles.Contains(selection)) ProfileList.SelectedItem = selection;
         Relay.ItemsSource = new[] { new PcProfile { Id = "", Name = "（中継PCを選択）" } }.Concat(settings.Profiles.Where(p => p.Agent != null)).ToList();
     }
@@ -58,6 +60,8 @@ public partial class MainWindow : Window
         Codec.SelectedItem = profile.Codec; Bitrate.Text = (profile.BitrateKbps / 1000m).ToString();
         Fullscreen.IsChecked = profile.Fullscreen; Overlay.IsChecked = profile.Overlay;
         MacAddress.Text = profile.Mac; BroadcastAddress.Text = profile.Broadcast; WakeId.Text = profile.WakeTargetId;
+        WanHostName.Text = profile.WanWakeHost; WanPort.Text = profile.WanWakePort.ToString();
+        WakeProfilePick.SelectedItem = profile;
         Relay.SelectedItem = Relay.Items.Cast<PcProfile>().FirstOrDefault(p => p.Id == profile.RelayProfileId);
         AgentInfo.Text = profile.Agent == null ? "電源操作には被接続側Agentの接続ファイルが必要です。" : $"Agent登録済み · {profile.Agent.Host}:{profile.Agent.Port}";
     }
@@ -74,6 +78,9 @@ public partial class MainWindow : Window
         profile.Codec = Codec.SelectedItem as string ?? "H.264";
         profile.Fullscreen = Fullscreen.IsChecked == true; profile.Overlay = Overlay.IsChecked == true;
         profile.Mac = MacAddress.Text.Trim(); profile.Broadcast = BroadcastAddress.Text.Trim();
+        profile.WanWakeHost = WanHostName.Text.Trim();
+        if (!int.TryParse(WanPort.Text.Trim(), out var wanPort)) throw new ArgumentException("外部WoLのUDPポートは1～65535の整数で指定してください。");
+        profile.WanWakePort = wanPort;
         profile.RelayProfileId = (Relay.SelectedItem as PcProfile)?.Id ?? ""; profile.WakeTargetId = WakeId.Text.Trim();
         profile.Validate();
         settings.Profiles[settings.Profiles.IndexOf(original)] = profile;
@@ -81,6 +88,11 @@ public partial class MainWindow : Window
         return profile;
     }
     private void ProfileList_SelectionChanged(object sender, SelectionChangedEventArgs e) { if (Selected is { } profile) LoadForm(profile); }
+    private void WakeProfilePick_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (WakeProfilePick.SelectedItem is PcProfile profile && !ReferenceEquals(ProfileList.SelectedItem, profile)) ProfileList.SelectedItem = profile;
+    }
+    public void ShowWanPreview() => MainTabs.SelectedIndex = 1;
     private void Add_Click(object sender, RoutedEventArgs e)
     {
         var profile = new PcProfile(); settings.Profiles.Add(profile); RefreshProfiles(); ProfileList.SelectedItem = profile;
@@ -166,6 +178,18 @@ public partial class MainWindow : Window
     private async void WakeLan_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
     {
         var profile = SaveForm(); await WakeOnLan.SendAsync(profile.Mac, profile.Broadcast); Log("LANへWoLを送信しました。起動完了は別途確認してください。");
+    });
+    private async void WakeWan_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
+    {
+        var profile = SaveForm();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        try
+        {
+            var endpoint = await WakeOnLan.SendToHostAsync(profile.Mac, profile.WanWakeHost, profile.WanWakePort, timeout.Token);
+            Log($"外部WoLを3回送信しました · {profile.WanWakeHost} → {endpoint} · MAC {profile.Mac}。起動完了は別途確認してください。");
+        }
+        catch (OperationCanceledException) { throw new IOException("外部WoLの送信がタイムアウトしました。送信先とDNS設定を確認してください。"); }
+        catch (SocketException ex) { throw new IOException("外部WoLを送信できません。送信先のIPv4／DDNS名とネットワーク接続を確認してください。\n" + ex.Message, ex); }
     });
     private async void WakeRelay_Click(object sender, RoutedEventArgs e) => await RunAsync(async () =>
     {

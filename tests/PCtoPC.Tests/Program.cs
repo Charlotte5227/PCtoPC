@@ -40,6 +40,58 @@ await Test("Real UDP WoL delivery to loopback receiver", async () =>
     await WakeOnLan.SendAsync("02:12:34:56:78:9A", "127.0.0.1");
     Check((await receive).Buffer.SequenceEqual(WakeOnLan.MagicPacket("02:12:34:56:78:9A")), "UDP payload mismatch");
 });
+await Test("WAN WoL uses the requested UDP port and sends three intact packets", async () =>
+{
+    using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+    var port = ((IPEndPoint)receiver.Client.LocalEndPoint!).Port;
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+    var endpoint = await WakeOnLan.SendToHostAsync("02:12:34:56:78:9A", "127.0.0.1", port, timeout.Token);
+    Check(endpoint.Address.Equals(IPAddress.Loopback) && endpoint.Port == port, "Wrong destination");
+    for (var i = 0; i < 3; i++)
+        Check((await receiver.ReceiveAsync(timeout.Token)).Buffer.SequenceEqual(WakeOnLan.MagicPacket("02:12:34:56:78:9A")), "WAN UDP payload mismatch");
+    Check(receiver.Available == 0, "Unexpected extra datagrams");
+});
+await Test("WAN WoL resolves a hostname to IPv4 and respects cancellation", async () =>
+{
+    using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+    var port = ((IPEndPoint)receiver.Client.LocalEndPoint!).Port;
+    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+    var endpoint = await WakeOnLan.SendToHostAsync("02:12:34:56:78:9A", "localhost", port, timeout.Token);
+    Check(endpoint.Address.Equals(IPAddress.Loopback), "Hostname was not resolved to loopback IPv4");
+    for (var i = 0; i < 3; i++) await receiver.ReceiveAsync(timeout.Token);
+    using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+    try { await WakeOnLan.SendToHostAsync("02:12:34:56:78:9A", "localhost", port, cancelled.Token); throw new Exception("Cancellation was ignored"); }
+    catch (OperationCanceledException) { }
+    Check(receiver.Available == 0, "Cancelled operation sent datagrams");
+});
+await Test("WAN settings reject URLs, multicast, IPv6 and out-of-range ports", async () =>
+{
+    foreach (var host in new[] { "", "--help", "https://home.example.net", "home.example.net:3000", "999.999.999.999", "255.255.255.255", "0.0.0.0", "224.0.0.1", "::1" })
+    {
+        try { await WakeOnLan.SendToHostAsync("02:12:34:56:78:9A", host, 3000); throw new Exception("Invalid WAN host accepted: " + host); }
+        catch (ArgumentException) { }
+    }
+    foreach (var port in new[] { -1, 0, 65536 })
+    {
+        try { await WakeOnLan.SendToHostAsync("02:12:34:56:78:9A", "127.0.0.1", port); throw new Exception("Invalid port accepted"); }
+        catch (ArgumentException) { }
+    }
+    Check(Validation.WakeHost(" home.example.net ") == "home.example.net", "DDNS name rejected");
+    Validation.UdpPort(1); Validation.UdpPort(65535);
+});
+await Test("Old profiles retain defaults; WAN settings persist without changing stream or Agent hosts", () =>
+{
+    var old = JsonData.Read<PcProfile>("""{"name":"old","host":"100.80.1.2","mac":"02:12:34:56:78:9A"}""");
+    old.Validate(); Check(old.WanWakeHost == "" && old.WanWakePort == 3000, "Old profile needs migration");
+    old.Agent = new Pairing { Host = "power.example.net", CertificateSha256 = Tokens.New(), Token = Tokens.New() };
+    old.WanWakeHost = "wake.example.net"; old.WanWakePort = 43000; old.Validate();
+    var file = Path.Combine(directory, "wan-profile.secret");
+    SecretFile.Write(file, JsonSerializer.Serialize(old, JsonData.Options));
+    var restored = JsonData.Read<PcProfile>(SecretFile.Read(file)); restored.Validate();
+    Check(restored.WanWakeHost == "wake.example.net" && restored.WanWakePort == 43000, "WAN settings were not saved");
+    Check(restored.Host == "100.80.1.2" && restored.Agent?.Host == "power.example.net" && restored.Mac == old.Mac, "Existing connection settings were overwritten");
+    return Task.CompletedTask;
+});
 await Test("Reject CLI option injection and preserve app names as one argument", () =>
 {
     var profile = new PcProfile { Host = "100.80.1.2", Application = "Desktop Work" };
