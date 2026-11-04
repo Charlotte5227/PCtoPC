@@ -1,0 +1,78 @@
+<Window x:Class="PCtoPC.Client.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PCtoPC — リモートデスクトップ" Width="1220" Height="940" MinWidth="1000" MinHeight="720" Background="#0E1726" WindowStartupLocation="CenterScreen">
+  <Grid Margin="26,20" TextElement.Foreground="#DFE8F4">
+    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+    <Grid Margin="0,0,0,20"><StackPanel><TextBlock Text="PCtoPC" FontSize="32" FontWeight="Bold"/><TextBlock Text="あなたのPCを、いつもの操作感で。" Foreground="#A5B6CD" Margin="0,4,0,0"/></StackPanel><TextBlock Text="WINDOWS HOME / PRO  ·  v0.1" HorizontalAlignment="Right" Foreground="#6AE1C5" FontSize="12"/></Grid>
+    <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0">
+      <TabItem Header="接続する">
+        <Grid Margin="0,20,0,0">
+          <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border Background="{StaticResource Panel}" CornerRadius="10" Padding="18">
+            <DockPanel LastChildFill="True">
+              <StackPanel DockPanel.Dock="Top"><TextBlock Text="接続先" Style="{StaticResource Heading}"/><WrapPanel><Button Content="＋ 追加" Click="Add_Click"/><Button Content="削除" Click="Delete_Click"/></WrapPanel></StackPanel>
+              <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0"><Button Content="接続ファイルを取り込む" Click="Import_Click" Margin="0,0,0,8"/><Button Content="Tailscale端末から追加" Click="Tailscale_Click" Margin="0,0,0,8"/><TextBlock Text="LANのIP、PC名、TailscaleのIP／MagicDNS名で接続できます。" Style="{StaticResource Muted}"/></StackPanel>
+              <ListBox x:Name="ProfileList" SelectionChanged="ProfileList_SelectionChanged" Background="Transparent" Foreground="#EAF2FF" BorderThickness="0" DisplayMemberPath="Name" ScrollViewer.HorizontalScrollBarVisibility="Disabled"><ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="Padding" Value="8,12"/><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style></ListBox.ItemContainerStyle></ListBox>
+            </DockPanel>
+          </Border>
+          <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+            <StackPanel>
+              <Border Background="{StaticResource Panel}" CornerRadius="10" Padding="22" Margin="0,0,0,14"><StackPanel>
+                <TextBlock Text="デスクトップに接続" Style="{StaticResource Heading}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><StackPanel><TextBlock Text="表示名"/><TextBox x:Name="PcName" AutomationProperties.Name="表示名"/></StackPanel><StackPanel Grid.Column="2"><TextBlock Text="接続先のIPまたはホスト名"/><TextBox x:Name="HostName" AutomationProperties.Name="接続先"/></StackPanel></Grid>
+                <TextBlock Text="Sunshineの配信アプリ名"/><TextBox x:Name="AppName" AutomationProperties.Name="配信アプリ名"/>
+                <WrapPanel><Button Content="接続する ↗" Background="#087F74" Click="Connect_Click"/><Button Content="初回ペアリング" Click="Pair_Click"/><Button Content="保存" Click="Save_Click"/><Button Content="接続を診断" Click="Diagnose_Click"/></WrapPanel>
+                <TextBlock Text="画面・音声・入力はMoonlightで開きます。終了: Ctrl + Alt + Shift + Q" Style="{StaticResource Muted}" Margin="0,4,0,0"/>
+              </StackPanel></Border>
+              <Border Background="{StaticResource Panel}" CornerRadius="10" Padding="22" Margin="0,0,0,14"><StackPanel>
+                <TextBlock Text="画質と応答性" Style="{StaticResource Heading}"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <StackPanel><TextBlock Text="解像度"/><ComboBox x:Name="Resolution" AutomationProperties.Name="解像度"/></StackPanel>
+                  <StackPanel Grid.Column="2"><TextBlock Text="フレームレート"/><ComboBox x:Name="FrameRate" AutomationProperties.Name="フレームレート"/></StackPanel>
+                  <StackPanel Grid.Column="4"><TextBlock Text="コーデック"/><ComboBox x:Name="Codec" AutomationProperties.Name="コーデック"/></StackPanel>
+                </Grid>
+                <TextBlock Text="ビットレート（Mbps、1～150）"/><TextBox x:Name="Bitrate" AutomationProperties.Name="ビットレート"/>
+                <WrapPanel><CheckBox x:Name="Fullscreen" Content="全画面"/><CheckBox x:Name="Overlay" Content="性能統計を表示"/></WrapPanel>
+                <WrapPanel><Button Content="LAN向け · 1080p / 60 / 20Mbps" Click="LanPreset_Click"/><Button Content="回線節約 · 720p / 60 / 8Mbps" Click="WanPreset_Click"/></WrapPanel>
+                <TextBlock Text="低遅延設定: ハードウェアデコード、VSync・フレームペーシングOFF。映像の乱れが出る場合はビットレートを下げてください。" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+              </StackPanel></Border>
+              <Border Background="{StaticResource Panel}" CornerRadius="10" Padding="22"><StackPanel>
+                <TextBlock Text="電源を管理" Style="{StaticResource Heading}"/><TextBlock x:Name="AgentInfo" Text="電源操作には被接続側Agentの接続ファイルが必要です。" Style="{StaticResource Muted}"/>
+                <WrapPanel><Button Content="状態を確認" Click="Status_Click"/><Button Content="スリープ" Click="Sleep_Click"/><Button Content="再起動" Click="Restart_Click"/><Button Content="シャットダウン" Click="Shutdown_Click"/><Button Content="予約を取り消す" Click="Cancel_Click"/></WrapPanel>
+                <TextBlock Text="LAN内で起動: MACアドレス"/><TextBox x:Name="MacAddress" AutomationProperties.Name="MACアドレス"/><TextBlock Text="LANのブロードキャストアドレス"/><TextBox x:Name="BroadcastAddress" AutomationProperties.Name="ブロードキャスト"/>
+                <TextBlock Text="Tailscale越しに起動: 常時稼働中の中継PC"/><ComboBox x:Name="Relay" DisplayMemberPath="Name" AutomationProperties.Name="中継PC"/><TextBlock Text="中継Agentに登録したWakeターゲットID"/><TextBox x:Name="WakeId" AutomationProperties.Name="WakeターゲットID"/>
+                <WrapPanel><Button Content="LANで起動する" Click="WakeLan_Click"/><Button Content="中継PCから起動する" Click="WakeRelay_Click"/></WrapPanel>
+                <TextBlock Text="起動はWake-on-LAN対応機器のみ。Tailscale越しには同じLANに別の常時稼働端末が必要です。Wi-Fi経由の復帰は機種に依存します。" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+              </StackPanel></Border>
+            </StackPanel>
+          </ScrollViewer>
+        </Grid>
+      </TabItem>
+      <TabItem Header="このPCで接続を受ける">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="22,24" MaxWidth="850" HorizontalAlignment="Left">
+          <TextBlock Text="最初の接続まで" Style="{StaticResource Heading}"/>
+          <TextBlock Text="1. 操作されるPCにSunshine、操作するPCにMoonlightをインストールします。Sunshineで初期設定を行い、Desktopアプリが登録されていることを確認してください。" Margin="0,0,0,14"/>
+          <WrapPanel><Button Content="Sunshine公式" Click="SunshineSite_Click"/><Button Content="Moonlight公式" Click="MoonlightSite_Click"/><Button Content="このPCのSunshine設定" Click="SunshineSettings_Click"/></WrapPanel>
+          <TextBlock Text="2. 同じWi-FiではLANのIP／PC名を登録します。外出先からは両方のPCでTailscaleにログインし、TailscaleのIP／MagicDNS名を登録します。初回ペアリングのPINをSunshine側に入力します。" Margin="0,10,0,18"/>
+          <Button Content="Tailscale公式" Click="TailscaleSite_Click" HorizontalAlignment="Left"/>
+          <TextBlock Text="3. 電源管理を使う場合だけ、このPCのAgentを初期化します。接続ファイルは操作するPCへ安全に渡し、取り込んだ後に削除してください。" Margin="0,10,0,16"/>
+          <Border Background="{StaticResource Panel}" Padding="22" CornerRadius="10"><StackPanel>
+            <TextBlock Text="このPCの接続先アドレス（LAN IP または Tailscale IP／MagicDNS名）"/><TextBox x:Name="LocalHost" AutomationProperties.Name="このPCの接続先アドレス"/>
+            <TextBlock Text="Agentが待ち受けるこのPCのIP（LANまたはTailscaleインターフェース）"/><TextBox x:Name="ListenAddress" Text="127.0.0.1" AutomationProperties.Name="待受IP"/>
+            <CheckBox x:Name="EnablePower" Content="このPCのスリープ・再起動・シャットダウンを許可する"/>
+            <WrapPanel><Button Content="Agentを初期化して接続ファイルを保存" Click="InitAgent_Click"/><Button Content="Agentを起動" Click="StartAgent_Click"/></WrapPanel>
+            <TextBlock Text="Agentはコンソールウィンドウを開いて動作します。停止はCtrl+C。待受IPとWindowsファイアウォールの許可範囲を合わせて設定してください（README参照）。" Style="{StaticResource Muted}"/>
+          </StackPanel></Border>
+          <TextBlock Text="電源オフからの起動について" Style="{StaticResource Heading}" Margin="0,24,0,12"/>
+          <TextBlock Text="UEFI/BIOSとネットワークアダプターのWake-on-LANを有効にします。有線LANを推奨します。外部からの起動は、別のPCやLinux端末でAgentを動かしてWoLを中継します。詳細な設定・自動起動の手順は同梱のREADMEとdocsをご覧ください。"/>
+          <TextBlock Text="共有するのは被接続側の実デスクトップです。ローカル画面にも操作が表示されます。ログイン前・UACのセキュアデスクトップ・画面のないPCの動作はSunshineと機器の構成に依存します。" Style="{StaticResource Muted}" Margin="0,20,0,0"/>
+        </StackPanel></ScrollViewer>
+      </TabItem>
+      <TabItem Header="設定とログ"><Grid Margin="22,24"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <StackPanel><TextBlock Text="Moonlightの実行ファイル" Style="{StaticResource Heading}"/><TextBox x:Name="MoonlightPath" AutomationProperties.Name="Moonlightの実行ファイル"/><Button Content="参照して保存" Click="BrowseMoonlight_Click" HorizontalAlignment="Left"/></StackPanel>
+        <TextBlock Grid.Row="1" Text="診断結果と操作ログ（通信時間は画面全体の遅延ではありません）" Margin="0,20,0,10"/>
+        <TextBox Grid.Row="2" x:Name="LogBox" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+      </Grid></TabItem>
+    </TabControl>
+    <Border Grid.Row="2" Background="#192333" CornerRadius="6" Padding="12,9" Margin="0,16,0,0"><TextBlock x:Name="StatusText" Text="接続先を追加して始めましょう。" Foreground="#A5B6CD"/></Border>
+  </Grid>
+</Window>

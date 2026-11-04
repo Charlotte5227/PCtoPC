@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/PCtoPC.Core/PCtoPC.Core.csproj" />
+  <Project Path="src/PCtoPC.Agent/PCtoPC.Agent.csproj" />
+  <Project Path="src/PCtoPC.Client/PCtoPC.Client.csproj" />
+  <Project Path="tests/PCtoPC.Tests/PCtoPC.Tests.csproj" />
+</Solution>
